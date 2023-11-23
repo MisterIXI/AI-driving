@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3 uid="uid://yniuo8d21am0"]
+
+[ext_resource type="PackedScene" uid="uid://cdtdndha1q3sp" path="res://scenes/game/cockpit.tscn" id="1_0jrbf"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_wrkhf"]
+radius = 0.363201
+height = 0.835105
+
+[node name="Car" type="CharacterBody3D"]
+
+[node name="CockPit" parent="." instance=ExtResource("1_0jrbf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.118965, 0, -0.0392932)
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.996717, 0.0809644, 0, -0.0809644, 0.996717, -0.00313412, 0.296565, 0.0151855)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.23876, 0)
+shape = SubResource("CapsuleShape3D_wrkhf")
+disabled = true
+
+[node name="RayCastFront" type="RayCast3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.677089)
+
+[node name="RayCastBack" type="RayCast3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.207336)

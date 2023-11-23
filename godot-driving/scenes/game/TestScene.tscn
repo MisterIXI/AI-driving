@@ -1,0 +1,24 @@
+[gd_scene load_steps=5 format=3 uid="uid://bijfq4r6eggwc"]
+
+[ext_resource type="Material" uid="uid://d03vf832fb6c3" path="res://assets/RoadMat.tres" id="1_3468j"]
+[ext_resource type="PackedScene" uid="uid://yniuo8d21am0" path="res://scenes/game/car.tscn" id="1_a15d5"]
+[ext_resource type="Script" path="res://scenes/components/RoadManager.cs" id="2_njxk2"]
+[ext_resource type="Material" uid="uid://b8ww6qr527l0p" path="res://assets/DirtMat.tres" id="4_ly4j6"]
+
+[node name="MainScene" type="Node3D"]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.272851, 0.559257, -0.782805, 5.77244e-09, 0.813679, 0.581314, 0.962056, -0.158612, 0.222013, -2.83068, 4.00008, 3.18047)
+
+[node name="Car" parent="." instance=ExtResource("1_a15d5")]
+
+[node name="RoadManager" type="Node" parent="."]
+script = ExtResource("2_njxk2")
+_roadMaterial = ExtResource("1_3468j")
+_dirtMaterial = ExtResource("4_ly4j6")
+_directionChangeRangeX = 1.458
+_directionChangeRangeY = 1.188
+_directionChangeSpeed = 0.007
+_forwardSegments = 40
+totalChunkCount = 6
+_roadSpeed = 0.931
