@@ -45,7 +45,7 @@ public partial class RoadManager : Node
 			roadSegment.Move(Vector3.Back * (float)delta * _roadSpeed);
 		}
 		//check if the first segment is out of view
-		if (_roadSegmentsList.First.Value.RoadBody.GlobalTransform.Origin.Z > roadLength)
+		if (_roadSegmentsList.First.Value.RoadBody.GlobalTransform.Origin.Z > roadLength * 1.5f)
 		{
 			//remove the first segment
 			_roadSegmentsList.First.Value.RoadBody.QueueFree();
