@@ -44,3 +44,10 @@ class tracker:
     def __str__(self):
         return f"stick_x: {self.stick_x}\nRT: {self.RT}\nLT: {self.LT}\nA: {self.A}"
         
+if __name__ == "__main__":
+    import time
+    tracker = tracker()
+    tracker.start_tracking_agent()
+    while True:
+        print(tracker)
+        time.sleep(0.1)

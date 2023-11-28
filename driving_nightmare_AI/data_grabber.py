@@ -4,6 +4,7 @@ import time
 import gamepad_tracker as gt
 import json
 import keyboard as kb
+import auto_gui_helper as ag
 
 tracker = gt.tracker()
 tracker.start_tracking_agent()
@@ -51,24 +52,13 @@ def save_data() -> None:
 
 def on_victory() -> None:
     print("Victory")
-    x, y = gui.locateCenterOnScreen(again_button, confidence=0.9)
-    gui.click(x, y)
+    ag.click_again_button()
     save_data()
     start_game()
 
 def on_defeat() -> None:
     print("Defeat")
-    global input_data
-    # remove the last X data points
-    # counter = DELETION_COUNT
-    # while counter > 0 and len(input_data) > 0:
-    #     datapoint = input_data.pop()
-    #     counter -= 1
-    #     # delete the screenshot
-    #     os.remove(run_path + "\\" + datapoint[0])
-    x, y = gui.locateCenterOnScreen(again_button, confidence=0.9)
-    gui.click(x, y)
-    print("Again button found and clicked...")
+    ag.click_again_button()
     save_data()
     start_game()
 
@@ -76,10 +66,7 @@ def start_game() -> None:
     print("Starting game")
     # wait for eventual scene loading times
     time.sleep(0.1)
-    x, y = gui.locateCenterOnScreen(start_button, confidence=0.9)
-    gui.click(x, y)
-    # move mouse out of the way
-    gui.moveTo(30, screenHeight)
+    ag.click_start_button()
     global run_path 
     run_path = determine_run_path()
     if not os.path.exists(run_path):
@@ -87,16 +74,6 @@ def start_game() -> None:
     global input_data
     input_data = []
 
-def wait_for_game() -> None:
-    print("Waiting for game to start")
-    # wait until header visible
-    while True:
-        try:
-            x, y = gui.locateCenterOnScreen(header, confidence=0.9)
-            break
-        except:
-            print("Waiting for the game to be visible...")
-            time.sleep(COLLECTION_DELAY)
 
 def react_on_key(event) -> None:
     if event.name == "esc":
@@ -112,21 +89,15 @@ kb.hook(react_on_key)
 run_path = determine_run_path()
 input_data = []
 game_running = False
-wait_for_game()
+ag.wait_for_game()
 game_running = True
 start_game()
 time.sleep(COLLECTION_DELAY)
 while game_running:
-    try:
-        x, y = gui.locateCenterOnScreen(victory_image, confidence=0.9)
+    if ag.check_for_win_screen():
         on_victory()
-    except gui.ImageNotFoundException:
-        try:
-            x, y = gui.locateCenterOnScreen(defeat_image, confidence=0.9)
-            on_defeat()
-        except gui.ImageNotFoundException:
-            # game still running
-            pass
+    elif ag.check_for_lose_screen():
+        on_defeat()
     # get inputs
     inputs = tracker.get_inputs()
     # collect data
