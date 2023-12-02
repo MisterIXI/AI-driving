@@ -6,7 +6,6 @@ import os
 import pyautogui as gui
 import cv2
 import math
-import inputs
 import keyboard as kb
 
 import auto_gui_helper as ag
