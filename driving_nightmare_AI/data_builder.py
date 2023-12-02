@@ -66,10 +66,7 @@ validation_data = total_data[int(0.8*sample_count):]
 training_result = result_data[:int(0.8*sample_count)]
 validation_result = result_data[int(0.8*sample_count):]
 
-test = training_data[0]
-print(test.shape)
-cv2.imshow("test", test)
-cv2.waitKey(0)
+
 # # put the data into tf.data.Dataset
 # training_dataset = tf.data.Dataset.from_tensor_slices(
 #     (training_data, training_result))
