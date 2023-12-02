@@ -107,5 +107,5 @@ while game_running:
     input_data.append((screenshot_name, inputs))
     print("Collected data point " + str(len(input_data)))
     # wait for some time
-    time.sleep(COLLECTION_DELAY)
+    # time.sleep(COLLECTION_DELAY)
 
