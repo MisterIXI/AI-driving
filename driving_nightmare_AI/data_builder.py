@@ -58,13 +58,14 @@ np.random.shuffle(zipped)
 
 # unpack the data
 total_data, result_data = zip(*zipped)
+training_data = total_data
+training_result = result_data
+# # split the data into training and validation sets
+# training_data = total_data[:int(0.8*sample_count)]
+# validation_data = total_data[int(0.8*sample_count):]
 
-# split the data into training and validation sets
-training_data = total_data[:int(0.8*sample_count)]
-validation_data = total_data[int(0.8*sample_count):]
-
-training_result = result_data[:int(0.8*sample_count)]
-validation_result = result_data[int(0.8*sample_count):]
+# training_result = result_data[:int(0.8*sample_count)]
+# validation_result = result_data[int(0.8*sample_count):]
 
 
 # # put the data into tf.data.Dataset
@@ -79,6 +80,6 @@ with h5py.File(os.path.join(script_dir, 'learning_data', 'training_data.h5'), 'w
     f.create_dataset('training_data', data=training_data)
     f.create_dataset('training_result', data=training_result)
 
-with h5py.File(os.path.join(script_dir, 'learning_data', 'validation_data.h5'), 'w') as f:
-    f.create_dataset('validation_data', data=validation_data)
-    f.create_dataset('validation_result', data=validation_result)
+# with h5py.File(os.path.join(script_dir, 'learning_data', 'validation_data.h5'), 'w') as f:
+#     f.create_dataset('validation_data', data=validation_data)
+#     f.create_dataset('validation_result', data=validation_result)
