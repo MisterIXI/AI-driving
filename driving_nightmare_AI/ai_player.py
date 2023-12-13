@@ -12,6 +12,10 @@ import auto_gui_helper as ag
 gamepad = vg.VX360Gamepad()
 script_dir = os.path.dirname(__file__)
 
+# run game exe
+exepath = os.path.join(script_dir,"DN_Game", r"Driving Nightmare.exe")
+os.startfile(exepath)
+
 def react_on_key(event) -> None:
     if event.name == "esc":
         global stats
