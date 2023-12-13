@@ -1,10 +1,10 @@
 import pyautogui as gui
 import os
 import time
-import gamepad_tracker as gt
 import json
 import keyboard as kb
-import auto_gui_helper as ag
+from helper_classes import gamepad_tracker as gt
+from helper_classes import auto_gui_helper as ag
 
 tracker = gt.tracker()
 tracker.start_tracking_agent()

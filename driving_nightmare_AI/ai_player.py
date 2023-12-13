@@ -8,7 +8,7 @@ import cv2
 import math
 import keyboard as kb
 
-import auto_gui_helper as ag
+from helper_classes import auto_gui_helper as ag
 gamepad = vg.VX360Gamepad()
 script_dir = os.path.dirname(__file__)
 
