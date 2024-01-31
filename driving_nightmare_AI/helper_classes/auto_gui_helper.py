@@ -2,11 +2,12 @@ import pyautogui as gui
 import time
 import os
 SCRIPT_DIR = os.path.dirname(__file__)
-HEADER_PNG = os.path.join(SCRIPT_DIR, "reference_images", "Header.png")
-YOU_LOSE_PNG = os.path.join(SCRIPT_DIR, "reference_images", "YouLose.png")
-YOU_WIN_PNG = os.path.join(SCRIPT_DIR, "reference_images", "Victory.png")
-AGAIN_BUTTON_PNG = os.path.join(SCRIPT_DIR, "reference_images", "again_button.png")
-START_BUTTON_PNG = os.path.join(SCRIPT_DIR, "reference_images", "start_button.png")
+PARENT_DIR = os.path.dirname(SCRIPT_DIR)
+HEADER_PNG = os.path.join(PARENT_DIR, "reference_images", "Header.png")
+YOU_LOSE_PNG = os.path.join(PARENT_DIR, "reference_images", "YouLose.png")
+YOU_WIN_PNG = os.path.join(PARENT_DIR, "reference_images", "Victory.png")
+AGAIN_BUTTON_PNG = os.path.join(PARENT_DIR, "reference_images", "again_button.png")
+START_BUTTON_PNG = os.path.join(PARENT_DIR, "reference_images", "start_button.png")
 
 def move_mouse_away() -> None:
     screenWidth, screenHeight = gui.size()  # Get the size of the primary monitor.
