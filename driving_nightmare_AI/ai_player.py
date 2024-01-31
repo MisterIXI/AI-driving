@@ -1,11 +1,9 @@
 import vgamepad as vg
-import time
 import tensorflow as tf
 import numpy as np
 import os
 import pyautogui as gui
 import cv2
-import math
 import keyboard as kb
 
 from helper_classes import auto_gui_helper as ag
