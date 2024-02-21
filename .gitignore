@@ -6,3 +6,7 @@ driving_nightmare_AI/__pycache__
 test.py
 DN_Game
 RL_training
+driving_nightmare_AI/SnakManiac/Snakii_Game/
+rl_data*
+__pycache__
+sm_model
