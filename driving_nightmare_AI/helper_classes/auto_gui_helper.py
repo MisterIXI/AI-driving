@@ -52,3 +52,6 @@ def click_start_button() -> None:
     x, y = gui.locateCenterOnScreen(START_BUTTON_PNG, confidence=0.9)
     gui.click(x, y)
     move_mouse_away()
+
+def try_click_exit_button() -> None:
+    pass

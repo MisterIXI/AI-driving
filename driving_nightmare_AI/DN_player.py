@@ -18,8 +18,9 @@ class DN_Player:
     def __init__(self) -> None:
         self.model: md.Model = md.Model()
         has_loaded = self.model.load_model()
+        self.action_shape = [3, 3]
         if not has_loaded:
-            self.model.create_model((1, 2, 21), ("steering", "acceleration"))
+            self.model.create_model(self.action_shape, ["steering", "acceleration"])
         kb.hook(self.react_on_key)
         self.game_running = True
         self.gamepad = gh.gamepad()
@@ -35,30 +36,16 @@ class DN_Player:
         if key.name == "esc":
             self.game_running = False
             print("ESC pressed, stopping game after this step...")
-    def convert_bin_indices(self, indices: tp.Tuple[float, float]) -> tp.Tuple[float, float]:
-        steer_id = indices[0]
-        accel_id = indices[1]
-        steer = (steer_id-10)/10
-        accel = (accel_id-10)/10
-        return (steer, accel)
 
-    def convert_bins(self, bins: tp.List[int]) -> tp.List[float]:
-        steering_bins = bins[0]
-        acceleration_bins = bins[1]
-        steering = np.argmax(steering_bins)
-        acceleration = np.argmax(acceleration_bins)
-        steering, acceleration = self.convert_bin_indices((steering, acceleration))
-        # if all values of steering_bins are 0, steering is 0
-        if np.all(steering_bins == 0):
-            steering = 0
-            if self.model.debug_level > 1:
-                print("All steering bins are 0, steering is 0")
-        # if all values of acceleration_bins are 0, acceleration is 0
-        if np.all(acceleration_bins == 0):
-            acceleration = 0
-            if self.model.debug_level > 1:
-                print("All acceleration bins are 0, acceleration is 0")
-        return [steering, acceleration]
+    def convert_action_to_input(self, action: np.ndarray) -> tp.Tuple[float, float]:
+        arr1 = action[:3]
+        arr2 = action[3:]
+        input1 = np.argmax(arr1)
+        input2 = np.argmax(arr2)
+        # steer = (input1 - 10) / 10
+        steer = input1 - 1.0
+        accell = input2 - 1.0
+        return steer, accell
 
     def run(self) -> None:
         self._open_game()
@@ -71,27 +58,33 @@ class DN_Player:
                 if self.game_running == False:
                     break
                 screenshot = gui.screenshot()
-                input = self.model.step(screenshot)
+                action = self.model.step(screenshot, 0)
                 # input = self.convert_bins(arr)
-                input = self.convert_bin_indices(input)
+                if action is None:
+                    input = (0, 0)
+                else:
+                    input = self.convert_action_to_input(action)
                 self.gamepad.apply_input(input[0], input[1])
                 self.gamepad.print_input()
                 if ag.check_for_lose_screen():
                     state = False
                 elif ag.check_for_win_screen():
                     state = True
+            self.gamepad.reset()
             if state == None:
                 self.model.save_running_model()
             else:
-                self.model.train(5, True)
+                self.model.finish_run(state)
+                self.model.train(10, 1, True)
             if self.game_running:
                 ag.click_again_button()
             else:
                 # ag.try_click_exit_button()
                 pass
-        
 
 
 if __name__ == "__main__":
     player = DN_Player()
     player.run()
+    # model = md.Model()
+    # model.create_model((1, 2, 21), ("steering", "acceleration"))
