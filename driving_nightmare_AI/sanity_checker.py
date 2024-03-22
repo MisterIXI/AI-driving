@@ -1,59 +1,64 @@
-import cv2
 import tensorflow as tf
-import numpy as np
-import os
-import h5py
+import DQNN.model as md
+import typing as tp
+import enum as en
+from time import sleep
+import time
 import keyboard as kb
+import cv2
+import pyautogui as gui
+import os
+import numpy as np
+import sys
+import pytesseract as pt
+import subprocess
+import h5py as h5
 
-script_dir = os.path.dirname(__file__)
+MODEL_STRING = "sh_model"
+PATH = os.path.join(os.path.dirname(__file__), MODEL_STRING)
+MODEL_PATH = os.path.join(PATH, MODEL_STRING, "running_model")
 
-
-def react_on_key(event) -> None:
-    if event.name == "esc":
-        print("shutting down...")
-        global continue_running
-        continue_running = False
-        # kb.press_and_release("q")
-
-
-def on_window_mouse_move(event, x, y, flags, param):
-    if event == cv2.EVENT_MOUSEMOVE:
-        global window
-        cv2.setWindowTitle("image", f"image: {x}, {y}")
-
-
-kb.hook(react_on_key)
-model = tf.keras.models.load_model(os.path.join(script_dir, "the_model"))
-# train_data = h5py.File(os.path.join(
-#     script_dir, 'learning_data', 'training_data.h5'), 'r')
-test_data = h5py.File(os.path.join(
-    script_dir, 'learning_data', 'validation_data.h5'), 'r')
-continue_running = True
-window = cv2.namedWindow("image", cv2.WINDOW_NORMAL)
-# cv2.setMouseCallback("image", on_window_mouse_move)
-
-while continue_running:
-    # take a random sample from the test data
-    image = test_data.get('validation_data')[np.random.randint(
-        0, len(test_data.get('validation_data')))]
-    # reshape the image to fit the model
-    preview_image = image.copy()
-    image = np.reshape(image, (1, 1080//4, 1920//4, 3))
-    prediction = model.predict(image)
-    # draw two boxes on the image to visualize the prediction
-    cv2.rectangle(preview_image, (5, 190), (70, 220), (50, 50, 50), -1)
-    # indicator gas
-    cv2.rectangle(preview_image, (15, 195), (60, 203), (255, 255, 255), -1)
-    gas_x = 15 + int(22.5 * prediction[0][1] + 22.5)
-    cv2.rectangle(preview_image, (gas_x-1, 195), (gas_x+1, 203), (0, 0, 255), -1)
-    # indicator steering
-    cv2.rectangle(preview_image, (15, 207), (60, 215), (255, 255, 255), -1)
-    steering_x = 15 + int(22.5 * prediction[0][0] + 22.5)
-    cv2.rectangle(preview_image, (steering_x-1, 207),
-                  (steering_x+1, 215), (0, 0, 255), -1)
-    cv2.setWindowTitle("image", f"image: steering: {prediction[0][0]:.2f}, gas: {prediction[0][1]:.2f}")
-    print(prediction[0])
-
-    # preview_image = cv2.resize(preview_image, (1920//2, 1080//2))
-    cv2.imshow("image", preview_image)
-    cv2.waitKey(0)
+running = True
+dataset = 0
+image = 0
+model = md.Model(path_name=MODEL_STRING)
+model.load_model()
+ds_path = os.path.join(PATH, str(dataset) + ".h5")
+cv2.namedWindow("image", cv2.WINDOW_NORMAL)
+while running:
+    with h5.File(ds_path, "r") as ds:
+        same_set = True
+        while same_set:
+            # load first set in dataset
+            print(ds)
+            print(ds["step_0"])
+            current = ds["step_" + str(image)]["img_old"]
+            print("current_shape: " + str(current.shape))
+            # q_values = model.predict_all_actions(current)
+            q_values = model.choose_next_action(current)
+            print("prediction: " + str(q_values))
+            cv2.setWindowTitle("image", "prediction: " + str(q_values))
+            cv2.imshow("image", current[0][:,:,3:])
+            key = cv2.waitKey(0)
+            # if key: "a"
+            if key == 97:
+                image = (image - 1) % len(ds)
+            # if key: "d"
+            if key == 100:
+                image = (image + 1) % len(ds)
+            # if key: "w"
+            if key == 119:
+                dataset += 1
+                image = 0
+                ds_path = os.path.join(PATH, str(dataset) + ".h5")
+                same_set = False
+            # if key: "s"
+            if key == 115 and dataset > 0:
+                dataset -= 1
+                image = 0
+                ds_path = os.path.join(PATH, str(dataset) + ".h5")
+                same_set = False
+            # if key: "q"
+            if key == 113:
+                running = False
+                break

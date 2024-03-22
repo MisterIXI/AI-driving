@@ -45,14 +45,14 @@ class Model:
         self.data = deque()
         self.run_data = deque()
         self.last_action = None
-        self.LEARNING_RATE = 0.002
+        self.LEARNING_RATE = 0.001
         self.DISCOUNT_FACTOR = 0.8
         self.EPSILON_MAX = 1.0
         self.EPSILON_MIN = 0.02
         self.EPSILON_DECAY = 0.9
         self.epsilon = self.EPSILON_MAX
         self.BATCH_SIZE = 32
-        self.UPDATE_TARGET_EVERY = 100
+        self.UPDATE_TARGET_EVERY = 20
         self.IMG_WIDTH = IMG_WIDTH
         self.IMG_HEIGHT = IMG_HEIGHT
         self.IMG_CHANNELS = 1
@@ -226,7 +226,8 @@ class Model:
         """
         screenshot = np.array(screenshot)
         # resize the image
-        image = cv2.resize(screenshot, (self.IMG_HEIGHT, self.IMG_WIDTH))
+        image = cv2.resize(screenshot, (self.IMG_WIDTH, self.IMG_HEIGHT))
+
         # grayscale
         image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         # reshape the image to the correct shape
@@ -247,8 +248,12 @@ class Model:
             return None
         elif len(self.framebuffer) == self.MEMORY_SIZE:
             # if buffer not completely filled, only predict this round
-            state = np.squeeze(np.array(self.framebuffer), axis=1)
-            state = np.reshape(state, (1, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE))
+            buffer = np.array(self.framebuffer)
+            print("buffer" + str(buffer.shape))
+            state = np.squeeze(buffer, axis=1)
+            print("state" + str(state.shape))
+            state = np.transpose(state, (3,1,2,0))
+            # state = np.reshape(state, (1, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE))
             print("state" + str(state.shape))
             self.last_action = self.choose_next_action(state, suppress_exploration=False)
             return self.last_action
@@ -256,10 +261,10 @@ class Model:
         squished_buffer = np.squeeze(np.array(self.framebuffer), axis=1)
         # old_state is the buffer without the last element
         old_state = squished_buffer[:-1]
-        old_state = np.reshape(old_state, (1, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE))
+        old_state = np.transpose(old_state, (3,1,2,0))
         # new_state is the buffer without the first element
         new_state = squished_buffer[1:]
-        new_state = np.reshape(new_state, (1, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE))
+        new_state = np.transpose(new_state, (3,1,2,0))
         selected_action = self.choose_next_action(new_state, suppress_exploration=False)
         # safe current data
         self.run_data.append((old_state, self.last_action, bonus_reward, Reward.NEUTRAL.value, new_state))
@@ -329,6 +334,7 @@ class Model:
                 done = step["done"][()]
                 img_new = step["img_new"][:]
                 batch.append((img_old, action, reward, done, img_new))
+                # TODO: Check if images are correct here
         return batch
 
     def train(self, batch_count: int, epochs: int, force_latest_set_once: bool = False) -> None:
@@ -337,6 +343,7 @@ class Model:
         """
         if self.debug_level >= DEBUG_BASIC:
             print("Training model...")
+        avg_loss = 0
         for i in range(batch_count):
             if self.debug_level >= DEBUG_DETAILED:
                 print(f"Loading data for batch {i+1}/{batch_count}...")
@@ -362,7 +369,7 @@ class Model:
             for i in range(batch_size):
                 start_i = i * action_count
                 end_i = (i+1) * action_count
-                stacked_states[start_i:end_i] = np.repeat(data_batch[i][0], action_count, axis=0)
+                stacked_states[start_i:end_i] = np.repeat(data_batch[i][4], action_count, axis=0)
             # repeat actions batch_size times
             stacked_actions = np.repeat(self.action_permutations, batch_size, axis=0)
             # predict the q-values for the new states
@@ -399,22 +406,30 @@ class Model:
             print("states " + str(states.shape))
             print("actions " + str(actions.shape))
             print("rewards " + str(rewards.shape))
-            self.running_model.fit((states, actions), rewards, epochs=epochs, verbose=self.debug_level)
+            history = self.running_model.fit((states, actions), rewards, epochs=epochs, verbose=self.debug_level)
+            # calculate the average loss of the batch
+            current_loss_avg = np.mean(history.history["loss"])
+            avg_loss += current_loss_avg
+
+            # TODO: Check if rewards are correctly calculated, seems like the best possible outcomes are predicted and used 
             self.update_counter += 1
             # update the target model
-            if self.update_counter % self.UPDATE_TARGET_EVERY == 0:
+            if self.update_counter > self.UPDATE_TARGET_EVERY:
+                self.update_counter = 0
                 self.target_model.set_weights(self.running_model.get_weights())
                 if self.debug_level >= DEBUG_BASIC:
                     print("Updated target model")
             # decay epsilon
             old_epsilon = self.epsilon
-            self.epsilon = max(self.EPSILON_MIN, self.epsilon * self.EPSILON_DECAY)
             if self.debug_level >= DEBUG_DETAILED:
                 print(f"Trained model for {epochs} epochs")
-                print(f"Epsilon: {old_epsilon} -> {self.epsilon}")
-
+        avg_loss /= batch_count
+        self.epsilon = max(self.EPSILON_MIN, self.epsilon * self.EPSILON_DECAY)
+        if self.debug_level >= DEBUG_DETAILED:
+            print(f"Epsilon: {old_epsilon} -> {self.epsilon}")
         if self.debug_level >= DEBUG_BASIC:
             print("Saving running model...")
         self.save_models()
         if self.debug_level >= DEBUG_BASIC:
             print("Model training finished")
+        return avg_loss

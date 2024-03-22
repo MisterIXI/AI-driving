@@ -12,6 +12,7 @@ from time import sleep
 import enum as en
 import typing as tp
 import DQNN.model as md
+import pickle as pkl
 
 
 class DN_Player:
@@ -21,10 +22,17 @@ class DN_Player:
         self.action_shape = [3, 3]
         if not has_loaded:
             self.model.create_model(self.action_shape, ["steering", "acceleration"])
+        self.model.LOSE_REWARD = -100
+        self.model.EPSILON_DECAY = 0.99
         kb.hook(self.react_on_key)
         self.game_running = True
         self.gamepad = gh.gamepad()
         self.SCRIPT_DIR = os.path.dirname(__file__)
+        self.stats = []
+        # if stats pickle exists, load it
+        if os.path.exists(os.path.join(self.SCRIPT_DIR, "rl_data", "stats.pickle")):
+            with open(os.path.join(self.SCRIPT_DIR, "rl_data", "stats.pickle"), "rb") as f:
+                self.stats = pkl.load(f)
 
     def _open_game(self) -> None:
         exepath = os.path.join(self.SCRIPT_DIR, "DN_Game",
@@ -51,14 +59,18 @@ class DN_Player:
         self._open_game()
         while self.game_running:
             # start game^
+            run_num = len(self.stats)
             ag.wait_for_game()
             ag.click_start_button()
             state = None
+            start_time = time.time()
+            reward_accum = 1
             while state == None:
                 if self.game_running == False:
                     break
                 screenshot = gui.screenshot()
-                action = self.model.step(screenshot, 0)
+                action = self.model.step(screenshot, reward_accum)
+                reward_accum += reward_accum
                 # input = self.convert_bins(arr)
                 if action is None:
                     input = (0, 0)
@@ -71,11 +83,16 @@ class DN_Player:
                 elif ag.check_for_win_screen():
                     state = True
             self.gamepad.reset()
+            final_time = time.time() - start_time
             if state == None:
                 self.model.save_running_model()
             else:
                 self.model.finish_run(state)
-                self.model.train(10, 1, True)
+                avg_loss = self.model.train(4, 5, True)
+                self.stats.append({"run": run_num, "time": final_time, "epsilons": self.model.epsilon, "avg_loss": avg_loss})
+                print("Run: " + str(run_num) + " Time: " + str(final_time))
+                with open(os.path.join(self.SCRIPT_DIR, "rl_data", "stats.pickle"), "wb") as f:
+                    pkl.dump(self.stats, f)
             if self.game_running:
                 ag.click_again_button()
             else:
