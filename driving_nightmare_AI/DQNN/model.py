@@ -268,6 +268,7 @@ class Model:
         selected_action = self.choose_next_action(new_state, suppress_exploration=False)
         # safe current data
         self.run_data.append((old_state, self.last_action, bonus_reward, Reward.NEUTRAL.value, new_state))
+        self.last_action = selected_action
         # if self.debug_level >= DEBUG_DETAILED:
         #     print(f"Step: indices: {indices}, q_values: {q_values}")
         return selected_action
@@ -292,6 +293,7 @@ class Model:
             self._add_intermediate_rewards(intermediate)
         self._save_dataset(self.run_data)
         self.run_data.clear()
+        self.framebuffer.clear()
 
     def _save_dataset(self, dataset: deque) -> None:
         """
@@ -320,14 +322,18 @@ class Model:
         # Create a probability distribution that is weighted towards the end
         weights = np.arange(1, len(h5_files) + 1)
         weights = weights / weights.sum()
-
+        # print("weights: ",weights)
         # select a random h5 file, weighted towards the end to get more relevant data
-        # h5_file = h5_files[np.random.randint(len(h5_files))]
         h5_file = np.random.choice(h5_files, p=weights)
+        print("h5_file chosen: ", h5_file)
+        
         with h5.File(os.path.join(self.FILE_PATH, h5_file), "r") as f:
+            # print("total steps in file: ", len(f))
             for i in range(batch_size):
-                # select a random step
-                step = f[f"step_{np.random.randint(len(f))}"]
+                # select a random step^
+                rand_int = np.random.randint(len(f))
+                # print("rand_int: ", rand_int)
+                step = f[f"step_{rand_int}"]
                 img_old = step["img_old"][:]
                 action = step["action"][()]
                 reward = step["reward"][()]
@@ -406,6 +412,7 @@ class Model:
             print("states " + str(states.shape))
             print("actions " + str(actions.shape))
             print("rewards " + str(rewards.shape))
+            # return states, actions, rewards
             history = self.running_model.fit((states, actions), rewards, epochs=epochs, verbose=self.debug_level)
             # calculate the average loss of the batch
             current_loss_avg = np.mean(history.history["loss"])
@@ -418,7 +425,7 @@ class Model:
                 self.update_counter = 0
                 self.target_model.set_weights(self.running_model.get_weights())
                 if self.debug_level >= DEBUG_BASIC:
-                    print("Updated target model")
+                    print("========== Updated target model ==========================================")
             # decay epsilon
             old_epsilon = self.epsilon
             if self.debug_level >= DEBUG_DETAILED:
