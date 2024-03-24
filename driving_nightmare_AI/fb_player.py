@@ -25,8 +25,8 @@ class fb_player:
         has_loaded = self.model.load_model()
         if not has_loaded:
             self.model.create_model(self.action_shape, ["jump"])
-        self.model.LOSE_REWARD = -10
-        self.obstacle_reward = -3
+        self.model.LOSE_REWARD = -4
+        self.obstacle_reward = -2
         # self.model.epsilon = 0.5
         kb.hook(self.react_on_key)
         self.stats = []
@@ -51,7 +51,7 @@ class fb_player:
                 ss = self.fb.get_screen()
                 reward = self.fb.check_for_reward()
                 reward *= 10
-                reward += 7
+                reward += 5
                 # reward += self.fb.steps_taken
                 action = self.model.step(ss, reward)
 

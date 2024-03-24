@@ -45,8 +45,8 @@ class Model:
         self.data = deque()
         self.run_data = deque()
         self.last_action = None
-        self.LEARNING_RATE = 0.001
-        self.DISCOUNT_FACTOR = 0.8
+        self.LEARNING_RATE = 0.0001
+        self.DISCOUNT_FACTOR = 0.99
         self.EPSILON_MAX = 1.0
         self.EPSILON_MIN = 0.02
         self.EPSILON_DECAY = 0.9
@@ -216,6 +216,7 @@ class Model:
         q_values = self.predict_all_actions(image_buffer)
         # get the index of the max value
         index = np.argmax(q_values)
+        # index = np.argmin(q_values)
         if self.debug_level >= DEBUG_DETAILED:
             print("Predicted Action: ", self.action_permutations[index])
         return self.action_permutations[index]
@@ -241,6 +242,10 @@ class Model:
         returns: null when the framebuffer is not filled, the bins otherwise
         """
         image = self._preprocess_image(screenshot)
+        if len(self.framebuffer) == 0:
+            # fill the buffer with MEMORY_SIZE -1 empty black images
+            for _ in range(self.MEMORY_SIZE - 1):
+                self.framebuffer.append(np.zeros((1, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS)))
         self.framebuffer.append(image)
         # check if the framebuffer is filled
         if len(self.framebuffer) < (self.MEMORY_SIZE):
