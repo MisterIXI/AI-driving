@@ -1,21 +1,13 @@
-import vgamepad as vg
 import tensorflow as tf
 import numpy as np
 import os
-import pyautogui as gui
 import cv2
-import keyboard as kb
-from helper_classes import auto_gui_helper as ag
-from helper_classes import gamepad_helper as gh
-import time
-from time import sleep
 import enum as en
 import typing as tp
 import pickle as pkl
 import h5py as h5
 from collections import deque
 import enum as en
-
 
 # Debug levels
 DEBUG_NONE = 0
@@ -57,7 +49,7 @@ class Model:
         self.IMG_HEIGHT = IMG_HEIGHT
         self.IMG_CHANNELS = 1
         self.update_counter = 0
-        self.NEUTRAL_REWARD = 1
+        self.NEUTRAL_REWARD = 0
         self.LOSE_REWARD = -10
         self.WIN_REWARD = 10
 
@@ -68,6 +60,12 @@ class Model:
         self.framebuffer.clear()
 
     def save_models(self) -> None:
+        self.running_model.save(os.path.join(self.FILE_PATH, "running_model_bak"))
+        self.target_model.save(os.path.join(self.FILE_PATH, "target_model_bak"))
+        with open(os.path.join(self.FILE_PATH, "model_params.pkl.bak"), "wb") as f:
+            pkl.dump((self.actions_shape, self.action_length, self.layer_names, self.epsilon, self.update_counter), f)
+        if self.debug_level >= DEBUG_BASIC:
+            print(f"Saved backups to {self.FILE_PATH}")
         self.running_model.save(os.path.join(self.FILE_PATH, "running_model"))
         self.target_model.save(os.path.join(self.FILE_PATH, "target_model"))
         with open(os.path.join(self.FILE_PATH, "model_params.pkl"), "wb") as f:
@@ -122,31 +120,35 @@ class Model:
         self.create_action_permutations(self.actions_shape)
         # define model
         # input layers:
-        inputA = tf.keras.Input(shape=(self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE), name="input_state")
-        inputB = tf.keras.Input(shape=(self.action_length), name="input_actions")
+        input = tf.keras.Input(shape=(self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE), name="input_state")
         # convolutional layers
-        x = tf.keras.layers.Conv2D(32, 5, activation='relu', kernel_initializer='HeNormal')(inputA)
+        x = tf.keras.layers.Conv2D(32, 5, activation='relu', kernel_initializer='HeNormal')(input)
+        # x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.MaxPooling2D(3)(x)
         x = tf.keras.layers.Conv2D(64, 5, activation='relu', kernel_initializer='HeNormal')(x)
+        # x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.MaxPooling2D(3)(x)
         x = tf.keras.layers.Conv2D(128, 5, activation='relu', kernel_initializer='HeNormal')(x)
+        # x = tf.keras.layers.Dropout(0.2)(x)
         x = tf.keras.layers.MaxPooling2D(5)(x)
         x = tf.keras.layers.Flatten()(x)
         # add player inputs to dense layer
-        x = tf.keras.layers.concatenate((x, inputB))
-        x = tf.keras.layers.Dense(32, activation='relu', kernel_initializer='HeNormal')(x)
+        # x = tf.keras.layers.Dropout(0.1)(x)
         x = tf.keras.layers.Dense(64, activation='relu', kernel_initializer='HeNormal')(x)
+        x = tf.keras.layers.Dense(64, activation='relu', kernel_initializer='HeNormal')(x)
+        x = tf.keras.layers.Dense(128, activation='relu', kernel_initializer='HeNormal')(x)
+        # x = tf.keras.layers.Dropout(0.2)(x)
         # output: the q-value for the given action
-        output = tf.keras.layers.Dense(1, activation='linear', kernel_initializer='HeNormal')(x)
+        output = tf.keras.layers.Dense(self.action_permutations.shape[0], activation='linear', kernel_initializer='HeNormal')(x)
         # define the running model
-        self.running_model = tf.keras.Model(inputs=[inputA, inputB], outputs=output)
+        self.running_model = tf.keras.Model(inputs=input, outputs=output)
         # define the target model
-        self.target_model = tf.keras.Model(inputs=[inputA, inputB], outputs=output)
+        self.target_model = tf.keras.Model(inputs=input, outputs=output)
         # compile the model
         self.running_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=self.LEARNING_RATE), loss="mse")
         # initialize the target model with the running model
-        self.target_model.set_weights(self.running_model.get_weights())
         self.target_model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=self.LEARNING_RATE), loss="mse")
+        self.target_model.set_weights(self.running_model.get_weights())
         if self.debug_level >= DEBUG_BASIC:
             print("Model initialized")
         if self.debug_level >= DEBUG_DETAILED:
@@ -157,15 +159,10 @@ class Model:
         Predicts the Q-values for the given image buffer in combination with all possible actions
         """
         # duplicate the image buffer to the number of actions
-        buffer_arr = np.asarray(image_buffer)
-        buffer_arr = np.repeat(buffer_arr, self.action_permutations.shape[0], axis=0)
         if use_target_model:
-            result = self.target_model.predict((buffer_arr, self.action_permutations))
+            return self.target_model.predict(image_buffer)
         else:
-            print(buffer_arr.shape)
-            print(self.action_permutations.shape)
-            result = self.running_model.predict((buffer_arr, self.action_permutations))
-        return result
+            return self.running_model.predict(image_buffer)
 
     def _rec_perms(self, actions, actions_shape, depth, offset):
         total_length = actions.shape[0]
@@ -212,14 +209,14 @@ class Model:
             if self.debug_level >= DEBUG_DETAILED:
                 print("Performing exploration")
             # choose random array from action_permutations
-            return self.action_permutations[np.random.randint(self.action_permutations.shape[0])]
+            return np.random.randint(self.action_permutations.shape[0]), True
         q_values = self.predict_all_actions(image_buffer)
         # get the index of the max value
         index = np.argmax(q_values)
         # index = np.argmin(q_values)
         if self.debug_level >= DEBUG_DETAILED:
             print("Predicted Action: ", self.action_permutations[index])
-        return self.action_permutations[index]
+        return index, False
 
     def _preprocess_image(self, screenshot: np.ndarray) -> np.ndarray:
         """
@@ -247,21 +244,17 @@ class Model:
             for _ in range(self.MEMORY_SIZE - 1):
                 self.framebuffer.append(np.zeros((1, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS)))
         self.framebuffer.append(image)
-        # check if the framebuffer is filled
-        if len(self.framebuffer) < (self.MEMORY_SIZE):
-            # not filled, return None
-            return None
-        elif len(self.framebuffer) == self.MEMORY_SIZE:
+        if len(self.framebuffer) == self.MEMORY_SIZE:
             # if buffer not completely filled, only predict this round
             buffer = np.array(self.framebuffer)
-            print("buffer" + str(buffer.shape))
+            # print("buffer" + str(buffer.shape))
             state = np.squeeze(buffer, axis=1)
-            print("state" + str(state.shape))
+            # print("state" + str(state.shape))
             state = np.transpose(state, (3,1,2,0))
             # state = np.reshape(state, (1, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE))
-            print("state" + str(state.shape))
-            self.last_action = self.choose_next_action(state, suppress_exploration=False)
-            return self.last_action
+            # print("state" + str(state.shape))
+            self.last_action, self.just_explored = self.choose_next_action(state, suppress_exploration=False)
+            return self.action_permutations[self.last_action]
         # predict the bin indices
         squished_buffer = np.squeeze(np.array(self.framebuffer), axis=1)
         # old_state is the buffer without the last element
@@ -270,33 +263,38 @@ class Model:
         # new_state is the buffer without the first element
         new_state = squished_buffer[1:]
         new_state = np.transpose(new_state, (3,1,2,0))
-        selected_action = self.choose_next_action(new_state, suppress_exploration=False)
+        selected_action, self.just_explored = self.choose_next_action(new_state, suppress_exploration=False)
         # safe current data
-        self.run_data.append((old_state, self.last_action, bonus_reward, Reward.NEUTRAL.value, new_state))
+        self.run_data.append((old_state, self.last_action, bonus_reward, Reward.NEUTRAL.value, new_state, self.just_explored))
         self.last_action = selected_action
         # if self.debug_level >= DEBUG_DETAILED:
         #     print(f"Step: indices: {indices}, q_values: {q_values}")
-        return selected_action
+        return self.action_permutations[selected_action]
 
     def _add_intermediate_rewards(self, intermediate: tp.Tuple[int, int] = None) -> None:
         """Add intermediate rewards to the run data"""
         if intermediate is not None:
             for i in range(len(self.run_data)):
-                self.run_data[i] = (self.run_data[i][0], self.run_data[i][1], self.run_data[i][2], Reward.Intermediate.value, self.run_data[i][4])
-        self.run_data[-1] = (self.run_data[-1][0], self.run_data[-1][1], self.run_data[-1][2], Reward.NEUTRAL.value, self.run_data[-1][4])
+                self.run_data[i] = (self.run_data[i][0], self.run_data[i][1], self.run_data[i][2], Reward.Intermediate.value, self.run_data[i][4], self.run_data[i][5])
+        self.run_data[-1] = (self.run_data[-1][0], self.run_data[-1][1], self.run_data[-1][2], Reward.NEUTRAL.value, self.run_data[-1][4], self.run_data[-1][5])
 
     def finish_run(self, has_won: bool, intermediate: tp.Tuple[int, int] = None) -> None:
         """Finish run, and assign states to the run.
         intermediate: (every_x_steps, min_distance_to_end)"""
         if has_won == None:
-            self.run_data[-1] = (self.run_data[-1][0], self.run_data[-1][1], self.run_data[-1][2], Reward.NEUTRAL.value, self.run_data[-1][4])
+            self.run_data[-1] = (self.run_data[-1][0], self.run_data[-1][1], self.run_data[-1][2], Reward.NEUTRAL.value, self.run_data[-1][4], self.run_data[-1][5])
         elif has_won:
-            self.run_data[-1] = (self.run_data[-1][0], self.run_data[-1][1], self.run_data[-1][2], Reward.WIN.value, self.run_data[-1][4])
+            self.run_data[-1] = (self.run_data[-1][0], self.run_data[-1][1], self.run_data[-1][2], Reward.WIN.value, self.run_data[-1][4], self.run_data[-1][5])
         else:
-            self.run_data[-1] = (self.run_data[-1][0], self.run_data[-1][1], self.run_data[-1][2], Reward.LOSE.value, self.run_data[-1][4])
+            self.run_data[-1] = (self.run_data[-1][0], self.run_data[-1][1], self.run_data[-1][2], Reward.LOSE.value, self.run_data[-1][4], self.run_data[-1][5])
         if intermediate is not None:
             self._add_intermediate_rewards(intermediate)
         self._save_dataset(self.run_data)
+        self.run_data.clear()
+        self.framebuffer.clear()
+
+    def cancel_run(self) -> None:
+        """Cancel the current run"""
         self.run_data.clear()
         self.framebuffer.clear()
 
@@ -308,13 +306,14 @@ class Model:
         h5_count = len([name for name in os.listdir(self.FILE_PATH) if name.endswith(".h5")])
         # save the dataset
         with h5.File(os.path.join(self.FILE_PATH, f"{h5_count}.h5"), "w") as f:
-            for i, (img_old, action, reward, done, img_new) in enumerate(dataset):
+            for i, (img_old, action, reward, done, img_new, just_explored) in enumerate(dataset):
                 grp = f.create_group(f"step_{i}")
                 grp.create_dataset("img_old", data=img_old)
                 grp.create_dataset("action", data=action)
                 grp.create_dataset("reward", data=reward)
                 grp.create_dataset("done", data=done)
                 grp.create_dataset("img_new", data=img_new)
+                grp.create_dataset("just_explored", data=just_explored)
 
     def _pull_batch_from_dataset(self, batch_size: int, force_latest_set: bool = False) -> tp.Tuple[np.ndarray, np.ndarray, int, int, np.ndarray]:
         """
@@ -360,65 +359,38 @@ class Model:
                 print(f"Loading data for batch {i+1}/{batch_count}...")
             data_batch = self._pull_batch_from_dataset(self.BATCH_SIZE, force_latest_set_once)
             batch_size = len(data_batch)
-            #######################
-            # complete_batch = np.zeros((batch_size * self.action_permutations.shape[0], self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE))
-            # action_count = self.action_permutations.shape[0]
-            # for i in range(batch_size):
-            #     repeated_arr = np.repeat(data_batch[i][0], action_count, axis=0)
-            #     complete_batch[i * action_count:(i+1) * action_count] = repeated_arr
-            # repeated_actions = np.repeat(self.action_permutations, batch_size, axis=0)
-            # new_preds = np.zeros((batch_size, self.action_permutations.shape[0],1))
-            # results = self.running_model.predict((complete_batch, repeated_actions))
-            # # change results from (batch_size * action_permutations, 1) to (batch_size, action_permutations, 1)
-            # for i in range(batch_size):
-            #     new_preds[i] = results[i * self.action_permutations.shape[0]:(i+1) * self.action_permutations.shape[0]]
-
-            #########################
-            # repeat states as often as there are actions (so in total, batch_size * action_permutations)
-            action_count = self.action_permutations.shape[0]
-            stacked_states = np.zeros((batch_size * action_count, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE))
-            for i in range(batch_size):
-                start_i = i * action_count
-                end_i = (i+1) * action_count
-                stacked_states[start_i:end_i] = np.repeat(data_batch[i][4], action_count, axis=0)
-            # repeat actions batch_size times
-            stacked_actions = np.repeat(self.action_permutations, batch_size, axis=0)
-            # predict the q-values for the new states
-            predictions = self.target_model.predict((stacked_states, stacked_actions))
             # take the one dimensional predictions output and reshape it to (batch_size, action_count)
-            new_preds = np.zeros((batch_size, action_count, 1))
+            state_stack = np.zeros((batch_size*2, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE))
             for i in range(batch_size):
-                new_preds[i] = predictions[i * action_count:(i+1) * action_count]
-
-
-            # new_preds = np.zeros((batch_size, self.action_permutations.shape[0], 1))
-            # for i in range(batch_size):
-            #     new_preds[i] = self.predict_all_actions(data_batch[i][4], use_target_model=True)
-            #######################
-            # reward prediction
-            rewards = np.zeros((batch_size, 1))
+                state_stack[i] = data_batch[i][0]
+                state_stack[i+batch_size] = data_batch[i][4]
+            total_predictions = self.target_model.predict(state_stack)
+            target_values = total_predictions[:batch_size]
+            future_rewards = total_predictions[batch_size:]
             for i in range(batch_size):
-                # get max reward of the given new_preds array
-                rewards[i] = np.max(new_preds[i]) * self.DISCOUNT_FACTOR
-                rewards[i] += data_batch[i][2]
+                # replace the taken action with actual reward
+                actual_reward = data_batch[i][2]
+                # add end state rewards
                 if data_batch[i][3] == Reward.WIN.value:
-                    rewards[i] += self.WIN_REWARD
+                    actual_reward += self.WIN_REWARD
                 elif data_batch[i][3] == Reward.LOSE.value:
-                    rewards[i] += self.LOSE_REWARD
+                    actual_reward += self.LOSE_REWARD
                 elif data_batch[i][3] == Reward.NEUTRAL.value:
-                    rewards[i] += self.NEUTRAL_REWARD
+                    actual_reward += self.NEUTRAL_REWARD
+                    # add the best reward of the next state with the discount factor
+                    actual_reward += np.max(future_rewards[i]) * self.DISCOUNT_FACTOR
+                target_values[i][data_batch[i][1]] = actual_reward
+
             # train the model
             if self.debug_level >= DEBUG_BASIC:
                 print(f"Training {epochs} epochs...")
             # unpack data_batch
             states = np.array([x[0] for x in data_batch])
             states = np.squeeze(states, axis=1)
-            actions = np.array([x[1] for x in data_batch])
             print("states " + str(states.shape))
-            print("actions " + str(actions.shape))
-            print("rewards " + str(rewards.shape))
+            print("rewards " + str(target_values.shape))
             # return states, actions, rewards
-            history = self.running_model.fit((states, actions), rewards, epochs=epochs, verbose=self.debug_level)
+            history = self.running_model.fit(states,target_values, epochs=epochs, verbose=self.debug_level)
             # calculate the average loss of the batch
             current_loss_avg = np.mean(history.history["loss"])
             avg_loss += current_loss_avg

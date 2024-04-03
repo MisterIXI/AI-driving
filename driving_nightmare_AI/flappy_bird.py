@@ -20,6 +20,7 @@ class FlappyBird:
         self.obstacle_cd = 0
         self.passed_since_last_check = 0
         self.steps_taken = 0
+        self.obstacles_passed = 0
 
     def start_game(self):
         self.bird_rect.top = 200
@@ -28,12 +29,16 @@ class FlappyBird:
         self.steps_taken = 0
         self.game_running = True
         self.was_OOB = False
+        self.obstacles_passed = 0
+        self.obstacle_cd = 0
         self.step()
+        # set window title
+        pg.display.set_caption("Flappy Bird; Score: 0")
 
     def spawn_new_obstacle(self):
-        gap_oneside = 200
-        rnd_boundary = 250
-        rnd_height = random.randint(250, self.height - 250)
+        gap_oneside = 100
+        rnd_boundary = 100
+        rnd_height = random.randint(rnd_boundary, self.height - rnd_boundary)
         obst_top = pg.Rect(self.width, 0, 50, rnd_height - gap_oneside)
         obst_bottom = pg.Rect(self.width, rnd_height + gap_oneside, 50, self.height - rnd_height - gap_oneside)
         self.obstacles.append((obst_top, obst_bottom))
@@ -44,6 +49,7 @@ class FlappyBird:
         return passed
     
     def step(self) -> bool:
+        pg.event.pump()
         # check for jump input
         if self.jump_input:
             self.bird_vel = -10
@@ -56,6 +62,8 @@ class FlappyBird:
             # check if bird passed obstacle
             if ob1.right >= self.bird_rect.left and ob1.right - 5 < self.bird_rect.left:
                 self.passed_since_last_check += 1
+                self.obstacles_passed += 1
+                pg.display.set_caption("Flappy Bird; Score: " + str(self.obstacles_passed))
             ob1.left -= 5
             ob2.left -= 5
         cleanup = len(self.obstacles) > 0
@@ -89,7 +97,7 @@ class FlappyBird:
         self.obstacle_cd -= 1
         if self.obstacle_cd <= 0:
             self.spawn_new_obstacle()
-            self.obstacle_cd = 50
+            self.obstacle_cd = 70
         # advance one frame in the game
         self.clock.tick(60)
         pg.display.flip()
@@ -120,7 +128,7 @@ class FlappyBird:
                 if event.key == pg.K_f:
                     print("F pressed!")
                     # self.step()  
-                    self.multiple_steps(5)       
+                    self.multiple_steps(7)       
                 if event.key == pg.K_q:
                     img = self.get_screen()
                     cv2.imshow("screen", img)

@@ -22,8 +22,9 @@ class DN_Player:
         self.action_shape = [3, 3]
         if not has_loaded:
             self.model.create_model(self.action_shape, ["steering", "acceleration"])
-        self.model.LOSE_REWARD = -100
-        self.model.EPSILON_DECAY = 0.99
+        self.model.LOSE_REWARD = -10
+        self.model.EPSILON_DECAY = 0.9
+        self.model.LEARNING_RATE = 0.001
         kb.hook(self.react_on_key)
         self.game_running = True
         self.gamepad = gh.gamepad()
@@ -64,13 +65,11 @@ class DN_Player:
             ag.click_start_button()
             state = None
             start_time = time.time()
-            reward_accum = 1
             while state == None:
                 if self.game_running == False:
                     break
                 screenshot = gui.screenshot()
-                action = self.model.step(screenshot, reward_accum)
-                reward_accum += reward_accum
+                action = self.model.step(screenshot, 5)
                 # input = self.convert_bins(arr)
                 if action is None:
                     input = (0, 0)
@@ -88,9 +87,11 @@ class DN_Player:
                 self.model.save_running_model()
             else:
                 self.model.finish_run(state)
-                avg_loss = self.model.train(4, 5, True)
+                avg_loss = self.model.train(5, 5, True)
                 self.stats.append({"run": run_num, "time": final_time, "epsilons": self.model.epsilon, "avg_loss": avg_loss})
                 print("Run: " + str(run_num) + " Time: " + str(final_time))
+                with open(os.path.join(self.SCRIPT_DIR, "rl_data", "stats.pickle.bak"), "wb") as f:
+                    pkl.dump(self.stats, f)
                 with open(os.path.join(self.SCRIPT_DIR, "rl_data", "stats.pickle"), "wb") as f:
                     pkl.dump(self.stats, f)
             if self.game_running:

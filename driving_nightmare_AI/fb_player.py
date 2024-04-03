@@ -27,6 +27,8 @@ class fb_player:
             self.model.create_model(self.action_shape, ["jump"])
         self.model.LOSE_REWARD = -4
         self.obstacle_reward = -2
+        self.model.LEARNING_RATE = 0.001
+        self.model.DISCOUNT_FACTOR = 0.9
         # self.model.epsilon = 0.5
         kb.hook(self.react_on_key)
         self.stats = []

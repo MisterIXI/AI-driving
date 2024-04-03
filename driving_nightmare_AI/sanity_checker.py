@@ -14,7 +14,7 @@ import pytesseract as pt
 import subprocess
 import h5py as h5
 
-MODEL_STRING = "fb_model"
+MODEL_STRING = "rl_data"
 PATH = os.path.join(os.path.dirname(__file__), MODEL_STRING)
 MODEL_PATH = os.path.join(PATH, MODEL_STRING, "running_model")
 
@@ -41,8 +41,11 @@ while running:
             # q_values = model.predict_all_actions(current)
             q_values = model.predict_all_actions(curr_raw)
             actions = model.choose_next_action(curr_raw)
+            reward = ds["step_" + str(image)]["reward"][()]
+            if ds["step_" + str(image)]["done"][()] == 2:
+                reward += -10
             print("prediction: " + str(actions))
-            title = "ds: {} im: {} ds_len: {} taken: {} pred: {} q_values: {} reward: {}".format(dataset, image,len(ds), taken_action, actions, q_values, ds["step_" + str(image)]["reward"][()])
+            title = "ds: {} im: {} ds_len: {} taken: {} pred: {} q_values: {} reward: {}".format(dataset, image,len(ds), taken_action, actions, q_values, reward)
             cv2.setWindowTitle("image", title)
             img = np.zeros((current.shape[0], current.shape[1]*5, 1), np.uint8)
             # place the for images next to each other

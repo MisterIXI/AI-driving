@@ -11,3 +11,7 @@ rl_data*
 __pycache__
 sm_model
 driving_nightmare_AI/sh_model
+driving_nightmare_AI/fb_model
+driving_nightmare_AI/fb_model_old
+fb_model_working_great_200_250
+pt_venv
