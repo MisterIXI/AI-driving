@@ -10,7 +10,7 @@ import pyautogui as gui
 import os
 import numpy as np
 import sys
-import pytesseract as pt
+# import pytesseract as pt
 import subprocess
 import h5py as h5
 

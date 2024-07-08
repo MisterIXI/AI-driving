@@ -60,14 +60,14 @@ class Model:
         self.framebuffer.clear()
 
     def save_models(self) -> None:
-        self.running_model.save(os.path.join(self.FILE_PATH, "running_model_bak"))
-        self.target_model.save(os.path.join(self.FILE_PATH, "target_model_bak"))
-        with open(os.path.join(self.FILE_PATH, "model_params.pkl.bak"), "wb") as f:
-            pkl.dump((self.actions_shape, self.action_length, self.layer_names, self.epsilon, self.update_counter), f)
-        if self.debug_level >= DEBUG_BASIC:
-            print(f"Saved backups to {self.FILE_PATH}")
-        self.running_model.save(os.path.join(self.FILE_PATH, "running_model"))
-        self.target_model.save(os.path.join(self.FILE_PATH, "target_model"))
+        # self.running_model.save(os.path.join(self.FILE_PATH, "running_model_bak"))
+        # self.target_model.save(os.path.join(self.FILE_PATH, "target_model_bak"))
+        # with open(os.path.join(self.FILE_PATH, "model_params.pkl.bak"), "wb") as f:
+        #     pkl.dump((self.actions_shape, self.action_length, self.layer_names, self.epsilon, self.update_counter), f)
+        # if self.debug_level >= DEBUG_BASIC:
+        #     print(f"Saved backups to {self.FILE_PATH}")
+        self.running_model.save(os.path.join(self.FILE_PATH, "running_model.keras"))
+        self.target_model.save(os.path.join(self.FILE_PATH, "target_model.keras"))
         with open(os.path.join(self.FILE_PATH, "model_params.pkl"), "wb") as f:
             pkl.dump((self.actions_shape, self.action_length, self.layer_names, self.epsilon, self.update_counter), f)
         if self.debug_level >= DEBUG_BASIC:
@@ -92,12 +92,12 @@ class Model:
         Loads the model from the given name
         """
         # check if the model exists
-        if not os.path.exists(os.path.join(self.FILE_PATH, "running_model")):
+        if not os.path.exists(os.path.join(self.FILE_PATH, "running_model.keras")):
             if self.debug_level >= DEBUG_BASIC:
-                print(f"Model {os.path.join(self.FILE_PATH, 'running_model')} does not exist")
+                print(f"Model {os.path.join(self.FILE_PATH, 'running_model.keras')} does not exist")
             return False
-        self.running_model = tf.keras.models.load_model(os.path.join(self.FILE_PATH, "running_model"))
-        self.target_model = tf.keras.models.load_model(os.path.join(self.FILE_PATH, "target_model"))
+        self.running_model = tf.keras.models.load_model(os.path.join(self.FILE_PATH, "running_model.keras"))
+        self.target_model = tf.keras.models.load_model(os.path.join(self.FILE_PATH, "target_model.keras"))
         # load the output shape and layer names
         with open(os.path.join(self.FILE_PATH, f"model_params.pkl"), "rb") as f:
             self.actions_shape, self.action_length, self.layer_names, self.epsilon, self.update_counter = pkl.load(f)
