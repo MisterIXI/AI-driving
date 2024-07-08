@@ -1,8 +1,3 @@
-*/venv
-venv_3_10
-driving_nightmare_AI/learning_data
-driving_nightmare_AI/learning_data_Backup
-driving_nightmare_AI/__pycache__
 test.py
 DN_Game
 RL_training
@@ -10,8 +5,8 @@ driving_nightmare_AI/SnakManiac/Snakii_Game/
 rl_data*
 __pycache__
 sm_model
-driving_nightmare_AI/sh_model
-driving_nightmare_AI/fb_model
-driving_nightmare_AI/fb_model_old
+sh_model
 fb_model_working_great_200_250
-pt_venv
+*venv*
+fb_model*
+.vscode
