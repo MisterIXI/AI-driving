@@ -10,4 +10,13 @@ Currently this version is not working, since even after much training it does no
 ### Usage:
 Both versions work pretty much the same way, since the branch was created after the original DQCNN was already working in general.  
 To make use of the network, a player class needs to be created that controls the game according to predictions, and also identfies and gives back the reward as feedback for learning.  
-This has been realized as `DN_Player.py` and `FB_Player.py` respectively. 
+This has been realized as `DN_Player.py` and `FB_Player.py` respectively.  
+They manage and run the full learning process and statistics by using `model.py`. The longer they run, the more training data is accumulated in the asscociated folder, and in theory the better the model gets.  
+  
+By using the `stat_plotter.ipynb` you can gain insight into the current status by plotting the statistics with the loss and performance over time.  
+## Project History and performance
+To learn more about the progression as well as the reasoning behind this project, you can read more in the [project documentation](./project_documentation.md).  
+Preview of the current performance:  
+(Time means the time survived in the game, the higher the better)  
+![DN_Stats](./docs/media/dn_stats.png)  
+![FB_Stats](./docs/media/fb_stats.png)
