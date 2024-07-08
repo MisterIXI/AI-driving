@@ -90,7 +90,7 @@ class DN_Player:
             final_time = time.time() - start_time
             if state != None:
                 self.model.finish_run(state)
-                avg_loss = self.model.train(5, 1, True)
+                avg_loss = self.model.train(5, 5, True)
                 self.stats.append({"run": run_num, "time": final_time, "epsilons": self.model.epsilon, "avg_loss": avg_loss})
                 print("Run: " + str(run_num) + " Time: " + str(final_time))
                 with open(os.path.join(self.SCRIPT_DIR, "rl_data", "stats.pickle"), "wb") as f:

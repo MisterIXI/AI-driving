@@ -99,7 +99,7 @@ class FlappyBird:
             self.spawn_new_obstacle()
             self.obstacle_cd = 70
         # advance one frame in the game
-        self.clock.tick(60)
+        self.clock.tick(1000)
         pg.display.flip()
         self.steps_taken += 1
 

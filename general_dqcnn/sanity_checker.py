@@ -13,7 +13,7 @@ import sys
 import subprocess
 import h5py as h5
 
-MODEL_STRING = "rl_data"
+MODEL_STRING = "fb_model"
 PATH = os.path.join(os.path.dirname(__file__), MODEL_STRING)
 MODEL_PATH = os.path.join(PATH, MODEL_STRING, "running_model")
 
@@ -35,23 +35,32 @@ while running:
             curr_raw = ds["step_" + str(image)]["img_old"] 
             curr_step = ds["step_" + str(image)]
             taken_action = curr_step["action"][()]
-            current = curr_raw[0]
+            # print("curr_raw: " + str(curr_raw.shape))
+            # arr = np.array(curr_raw)
+            # print(f"arr: {arr.shape}")
+            np_data = np.array(curr_raw)
+            current = th.from_numpy(np_data).permute(0, 3, 1, 2).float().cuda()
+            # current = th.from_numpy(curr_raw[0]).float()
+            # # assuming `current` is your input tensor
+            # current = current.permute(0, 3, 1, 2)
             print("current_shape: " + str(current.shape))
-            # q_values = model.predict_all_actions(current)
+            q_values = model.predict_all_actions(current)
+            actions = model.choose_next_action(current)
             # q_values = model.predict_all_actions(curr_raw)
-            # actions = model.choose_next_action(curr_raw)
-            # reward = ds["step_" + str(image)]["reward"][()]
-            # if ds["step_" + str(image)]["done"][()] == 2:
-            #     reward += -10
+            reward = ds["step_" + str(image)]["reward"][()]
+            if ds["step_" + str(image)]["done"][()] == 2:
+                reward += -10
             # print("prediction: " + str(actions))
-            # title = "ds: {} im: {} ds_len: {} taken: {} pred: {} q_values: {} reward: {}".format(dataset, image,len(ds), taken_action, actions, q_values, reward)
-            # cv2.setWindowTitle("image", title)
-            img = np.zeros((current.shape[0], current.shape[1]*5, 1), np.uint8)
+            title = "ds: {} im: {} ds_len: {} taken: {} pred: {} q_values: {} reward: {}".format(dataset, image,len(ds), taken_action, actions, q_values.cpu().detach().numpy(), reward)
+            cv2.setWindowTitle("image", title)
+            img_np = np_data[0]
+            print(f"img_np: {img_np.shape}")
+            img = np.zeros((img_np.shape[0], img_np.shape[1]*5, 1), np.uint8)
             # place the for images next to each other
             for i in range(4):
-                img[:,i*current.shape[1]:i*current.shape[1]+current.shape[1], :] = current[:,:,i:i+1]
+                img[:,i*img_np.shape[1]:i*img_np.shape[1]+img_np.shape[1], :] = img_np[:,:,i:i+1]
             # add latest image from img_new to the right
-            img[:,4*current.shape[1]:4*current.shape[1]+current.shape[1], :] = ds["step_" + str(image)]["img_new"][0][:, :, 3:4]
+            img[:,4*img_np.shape[1]:4*img_np.shape[1]+img_np.shape[1], :] = ds["step_" + str(image)]["img_new"][0][:, :, 3:4]
             cv2.imshow("image", img)
             # cv2.imshow("image", current[0][:, :, 3:])
             key = cv2.waitKey(0)

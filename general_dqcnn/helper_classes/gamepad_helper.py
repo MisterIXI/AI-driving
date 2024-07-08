@@ -61,3 +61,17 @@ class gamepad:
 
     def __str__(self) -> str:
         return f"gamepad: {self.joystick_input}, {self.l_trigger}, {self.r_trigger}"
+
+
+if __name__ == "__main__":
+    import time
+    gp = gamepad()
+    while True:
+        gp.apply_input(1.0, 1.0)
+        gp.print_input()
+        time.sleep(1)
+        gp.apply_input(-1.0, -1.0)
+        gp.print_input()
+        time.sleep(1)
+        gp.reset()
+        time.sleep(1)

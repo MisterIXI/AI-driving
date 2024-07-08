@@ -17,13 +17,15 @@ class fb_player:
     def __init__(self) -> None:
         self.model = md.Model(path_name="fb_model", IMG_HEIGHT=800//4, IMG_WIDTH=600//4)
         self.action_shape = [2]
+        # TODO: FIXME
         has_loaded = self.model.load_models()
         if not has_loaded:
             self.model.create_model(self.action_shape, ["jump"])
         self.model.LOSE_REWARD = -4
         self.obstacle_reward = -2
-        self.model.LEARNING_RATE = 0.001
-        self.model.DISCOUNT_FACTOR = 0.9
+        # self.model.LEARNING_RATE = 0.05
+        self.model.change_learning_rate( 0.0001)
+        self.model.DISCOUNT_FACTOR = 0.999
         # self.model.epsilon = 0.5
         kb.hook(self.react_on_key)
         self.stats = []
@@ -46,6 +48,7 @@ class fb_player:
             self.fb.start_game()
             while self.fb.game_running:
                 ss = self.fb.get_screen()
+                reward = 0
                 reward = self.fb.check_for_reward()
                 reward *= 10
                 reward += 5
@@ -66,7 +69,7 @@ class fb_player:
             stat = {"score": self.fb.steps_taken, "epsilon": self.model.epsilon}
             self.fb.close()
             self.fb = None
-            avg_loss = self.model.train(10, 1)
+            avg_loss = self.model.train(10, 2)
             stat["avg_loss"] = avg_loss
             self.stats.append(stat)
             with open(os.path.join(PATH, "stats.pickle"), "wb") as f:

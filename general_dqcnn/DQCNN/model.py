@@ -116,15 +116,43 @@ class Model:
         self._create_action_permutations(self.actions_shape)
         input_shape = (self.IMG_HEIGHT, self.IMG_WIDTH,
                        self.IMG_CHANNELS*self.MEMORY_SIZE)
-        self.model_shape = [th.nn.Conv2d(input_shape[2], 32, 4),  # 32x480x270
-                            th.nn.MaxPool2d(2),  # 32x240x135
-                            th.nn.Conv2d(32, 64, 4, 2),  # 64x240x135
-                            th.nn.MaxPool2d(2),  # 64x120x67
-                            th.nn.Conv2d(64, 64, 3, 1),  # 64x120x67
-                            th.nn.AdaptiveMaxPool2d((15, 30)),  # 64x60x33
-                            th.nn.Flatten(),
-                            th.nn.Linear(28800, 512),
+        #TODO
+        # pattern conv2d -> relu -> conv2d mit padding gleich -> relu
+        # das obere X mal machen, dabei pro block bild kleiner und channel mehr (anfangen bei so 32 channels, ende kann gut gegen 200 werden und bild bis zu so 10x10 klein werden)
+        # in summe nicht mehr als 1.000.000 parameter idealerweise
+        
+        # batch normalization ausprobieren
+        self.model_shape = [th.nn.Conv2d(input_shape[2], 32, 4,padding='same'),  # 32x480x270
                             th.nn.ReLU(),
+                            th.nn.BatchNorm2d(32),
+                            th.nn.MaxPool2d(2),  # 32x240x135
+                            th.nn.Conv2d(32, 64, 4,padding='same'),  # 64x240x135
+                            th.nn.ReLU(),
+                            th.nn.BatchNorm2d(64),
+                            th.nn.MaxPool2d(2),  
+                            th.nn.Conv2d(64, 64, 4,padding='same'),  # 64x240x135
+                            th.nn.ReLU(),
+                            th.nn.BatchNorm2d(64),
+                            th.nn.MaxPool2d(2),  # 64x120x67
+                            th.nn.Conv2d(64, 64, 3,padding='same'),  # 64x120x67
+                            th.nn.ReLU(),
+                            th.nn.BatchNorm2d(64),
+                            th.nn.Conv2d(64, 64, 3,padding='same'),
+                            th.nn.ReLU(),
+                            th.nn.BatchNorm2d(64),
+                            th.nn.MaxPool2d(2),  
+                            th.nn.Conv2d(64, 64, 3,padding='same'),
+                            th.nn.ReLU(),
+                            th.nn.BatchNorm2d(64),
+                            th.nn.Conv2d(64, 64, 3,padding='same'),
+                            th.nn.ReLU(),
+                            th.nn.BatchNorm2d(64),
+                            # th.nn.AdaptiveMaxPool2d((15, 30)),  # 64x60x33
+                            th.nn.MaxPool2d(2),  
+                            th.nn.Flatten(),
+                            th.nn.Linear(1536, 512),
+                            th.nn.ReLU(),
+                            th.nn.BatchNorm1d(512),
                             th.nn.Linear(512, self.action_permutations.shape[0])]
 
         self.running_model = th.nn.Sequential(*self.model_shape)
@@ -292,10 +320,14 @@ class Model:
                 "BATCH_SIZE": self.BATCH_SIZE,
                 "UPDATE_TARGET_EVERY": self.UPDATE_TARGET_EVERY,
                 "update_counter": self.update_counter,
-                "model_shape": self.model_shape
+                "model_shape": self.model_shape,
+                "actions_shape": self.actions_shape,
+                "optimizer": self.optimizer.state_dict(),
             }, f)
 
     def load_models(self) -> bool:
+        if self.debug_level >= DEBUG_BASIC:
+            print("Loading models...")
         # check if all files exist
         if not os.path.exists(os.path.join(self.FILE_PATH, "model_params.pickle")):
             return False
@@ -324,6 +356,8 @@ class Model:
             self.UPDATE_TARGET_EVERY = params["UPDATE_TARGET_EVERY"]
             self.update_counter = params["update_counter"]
             self.model_shape = params["model_shape"]
+            self.actions_shape = params["actions_shape"]
+            optimizer_state = params["optimizer"]
         # load the running model
         self.running_model = th.nn.Sequential(*self.model_shape)
         self.running_model.load_state_dict(
@@ -332,7 +366,22 @@ class Model:
         self.target_model = th.nn.Sequential(*self.model_shape)
         self.target_model.load_state_dict(
             th.load(os.path.join(self.FILE_PATH, "target_model.pth")))
-
+        self._create_action_permutations(self.actions_shape)
+        self.optimizer = th.optim.Adam(
+            self.running_model.parameters(), lr=self.LEARNING_RATE)
+        self.optimizer.load_state_dict(optimizer_state)
+        self.loss_fn = th.nn.MSELoss()
+        if self.debug_level >= DEBUG_BASIC:
+            print("Models loaded!")
+        return True
+    
+    def change_learning_rate(self, new_learning_rate: float) -> None:
+        state_dict = self.optimizer.state_dict()
+        self.LEARNING_RATE = new_learning_rate
+        self.optimizer = th.optim.Adam(
+            self.running_model.parameters(), lr=self.LEARNING_RATE)
+        self.optimizer.load_state_dict(state_dict)
+        
     def _pull_batch_from_dataset(self, batch_size: int, force_latest_set: bool = False) -> tp.Tuple[np.ndarray, np.ndarray, int, int, np.ndarray]:
         """
         Pull a batch from the given dataset and rewards
@@ -366,20 +415,39 @@ class Model:
                 batch.append((img_old, action, reward, done, img_new))
         return batch
 
-    def _fit(self, states, target_values, epochs: int) -> int:
-        avg_loss = 0
-        for i in range(epochs):
-            states_copy = states.clone()
-            # Forward pass
-            outputs = self.running_model(states_copy)
-            loss = self.loss_fn(outputs, target_values)
+    # def _fit(self, states, target_values, epochs: int) -> int:
+    #     states_copy = states.clone()
+    #     # Forward pass
+    #     outputs = self.running_model(states_copy)
+    #     loss = self.loss_fn(outputs, target_values)
 
-            # Backward pass and optimization
-            self.optimizer.zero_grad()
-            loss.backward(retain_graph=True)
-            self.optimizer.step()
-            avg_loss += loss.item()
-        return avg_loss/epochs
+    #     # Calculate gradients only once
+    #     self.optimizer.zero_grad()
+    #     loss.backward()
+
+    #     avg_loss = 0
+    #     for _ in range(epochs):
+    #         self.optimizer.step()
+    #         avg_loss += loss.item()  # You can reuse the calculated loss here
+    #     return avg_loss / epochs
+    
+    def _fit(self, states, target_values) -> int:
+        self.running_model.train(True)
+        # states_copy = states.clone()
+        # target_clones = target_values.clone()
+        self.optimizer.zero_grad()
+        # Forward pass
+        outputs = self.running_model(states)
+        loss = self.loss_fn(outputs, target_values)
+        loss.backward()
+        # print(f"model grad in step: {self.model_shape[-1].weight.grad}")
+        # Backward pass and optimization
+        self.optimizer.step()
+        # avg_loss += loss.item()
+        self.running_model.train(False)
+        return loss.item()
+
+
 
     def train(self, batch_count: int, epochs: int, force_latest_set_once: bool = False) -> None:
         """
@@ -395,47 +463,54 @@ class Model:
             data_batch = self._pull_batch_from_dataset(
                 self.BATCH_SIZE, force_latest_set_once)
             batch_size = len(data_batch)
-            state_stack = th.zeros(
-                (batch_size*2, self.IMG_CHANNELS*self.MEMORY_SIZE, self.IMG_HEIGHT, self.IMG_WIDTH))
-            for i in range(batch_size):
-                state_stack[i] = th.from_numpy(
-                    data_batch[i][0]).permute(0, 3, 1, 2).float()
-                state_stack[i+batch_size] = th.from_numpy(
-                    data_batch[i][4]).permute(0, 3, 1, 2).float()
-            # state_stack = np.zeros((batch_size*2, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE))
-            # state_stack[:batch_size] = [data[0] for data in data_batch]
-            # state_stack[batch_size:] = [data[4] for data in data_batch]
-            if self.cuda:
-                state_stack = state_stack.cuda()
-            total_predictions = self.target_model(state_stack)
-            print("total_predictions: ", total_predictions.shape)
-            # convert to np array
-            target_values = total_predictions[:batch_size]
-            future_rewards = total_predictions[batch_size:]
-            for i in range(batch_size):
-                # replace the taken action with actual reward
-                actual_reward = data_batch[i][2]
-                # add end state rewards
-                if data_batch[i][3] == Reward.WIN.value:
-                    actual_reward += self.WIN_REWARD
-                elif data_batch[i][3] == Reward.LOSE.value:
-                    actual_reward += self.LOSE_REWARD
-                elif data_batch[i][3] == Reward.NEUTRAL.value:
-                    actual_reward += self.NEUTRAL_REWARD
-                    # add the best reward of the next state with the discount factor if not dead next turn
-                    fr_clone = future_rewards.clone()
-                    actual_reward += th.max(fr_clone[i]) * self.DISCOUNT_FACTOR
-                    # print("actual_reward: ", actual_reward)
-                target_values[i][data_batch[i][1]] = actual_reward
+            for epoch in range(epochs):
+                state_stack = th.zeros(
+                    (batch_size*2, self.IMG_CHANNELS*self.MEMORY_SIZE, self.IMG_HEIGHT, self.IMG_WIDTH))
+                for i in range(batch_size):
+                    state_stack[i] = th.from_numpy(
+                        data_batch[i][0]).permute(0, 3, 1, 2).float()
+                    state_stack[i+batch_size] = th.from_numpy(
+                        data_batch[i][4]).permute(0, 3, 1, 2).float()
+                # state_stack = np.zeros((batch_size*2, self.IMG_HEIGHT, self.IMG_WIDTH, self.IMG_CHANNELS*self.MEMORY_SIZE))
+                # state_stack[:batch_size] = [data[0] for data in data_batch]
+                # state_stack[batch_size:] = [data[4] for data in data_batch]
+                if self.cuda:
+                    state_stack = state_stack.cuda()
+                total_predictions = self.target_model(state_stack)
+                print("total_predictions: ", total_predictions.shape)
+                # convert to np array
+                target_values = total_predictions[:batch_size]
+                future_rewards = total_predictions[batch_size:]
+                for i in range(batch_size):
+                    # replace the taken action with actual reward
+                    actual_reward = data_batch[i][2]
+                    # add end state rewards
+                    if data_batch[i][3] == Reward.WIN.value:
+                        actual_reward += self.WIN_REWARD
+                    elif data_batch[i][3] == Reward.LOSE.value:
+                        actual_reward += self.LOSE_REWARD
+                    elif data_batch[i][3] == Reward.NEUTRAL.value:
+                        actual_reward += self.NEUTRAL_REWARD
+                        # add the best reward of the next state with the discount factor if not dead next turn
+                        fr_clone = future_rewards.clone()
+                        actual_reward += th.max(fr_clone[i]) * self.DISCOUNT_FACTOR
+                        # print("actual_reward: ", actual_reward)
+                    target_values[i][data_batch[i][1]] = actual_reward
+                    # updated_values = target_values.clone()
+                    # updated_values[i][data_batch[i][1]] = actual_reward
+                    # target_values = updated_values
 
-            # train the model
-            if self.debug_level >= DEBUG_BASIC:
-                print(f"Training {epochs} epochs...")
+                # train the model
+                if self.debug_level >= DEBUG_BASIC:
+                    print(f"Training {epochs} epochs...")
 
-            print("states " + str(state_stack[:batch_size].shape))
-            print("rewards " + str(target_values.shape))
-            avg_loss += self._fit(state_stack[:batch_size].clone(),
-                                  target_values, epochs)
+                print("states " + str(state_stack[:batch_size].shape))
+                print("rewards " + str(target_values.shape))
+                new_loss =  self._fit(state_stack[:batch_size].clone(),
+                                    target_values)
+                if self.debug_level >= DEBUG_DETAILED:
+                    print(f"=== Loss: {new_loss}")
+                avg_loss += new_loss
 
             # TODO: Check if rewards are correctly calculated, seems like the best possible outcomes are predicted and used
             self.update_counter += 1
@@ -451,7 +526,7 @@ class Model:
             old_epsilon = self.epsilon
             if self.debug_level >= DEBUG_DETAILED:
                 print(f"Trained model for {epochs} epochs")
-        avg_loss /= batch_count
+        avg_loss /= batch_count * epochs
         self.epsilon = max(self.EPSILON_MIN, self.epsilon * self.EPSILON_DECAY)
         if self.debug_level >= DEBUG_DETAILED:
             print(f"Epsilon: {old_epsilon} -> {self.epsilon}")
