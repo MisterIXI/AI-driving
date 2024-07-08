@@ -2,6 +2,15 @@
 This project aims to create a Deep Q-Learning Convolutional Neural Network (DQCNN) that generalizes well on many Video games, but can mainly control the gamejam game "[Driving Nightmare](https://misterixi.itch.io/driving-nightmare)". The idea is that the only input the AI gets, are screenshots of the game and some sort of reward signal fitting to the game. The ingame UI elements have been remove from the named game to make the learning more consistent.
 ## How to use:
 This repository contains two different models/frameworks:  
+### Python requirements
+Used was Python 3.10.11 and a requirements.txt is provided. But the specific packages installed are:  
+- pytorch
+- tensorflow
+- ipykernel
+- pandas
+- h5py
+- matplotlib
+- numpy
 ### Tensorflow Version:
 In [Driving Nightmare AI](./driving_nightmare_AI/) is the original DQCNN built for tensorflow. This started just as a CNN, but was later changed to a Reinforcement Learning approach.  
 ### Pytorch Version:
