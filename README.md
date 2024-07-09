@@ -11,6 +11,11 @@ Used was Python 3.10.11 and a requirements.txt is provided. But the specific pac
 - h5py
 - matplotlib
 - numpy
+- pygame
+- keyboard
+- vgamepad
+- pyautogui
+- torchsummary
 ### Tensorflow Version:
 In [Driving Nightmare AI](./driving_nightmare_AI/) is the original DQCNN built for tensorflow. This started just as a CNN, but was later changed to a Reinforcement Learning approach.  
 ### Pytorch Version:
