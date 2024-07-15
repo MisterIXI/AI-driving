@@ -10,4 +10,14 @@ This approach was also very flawed at first, since the model was able to reduce 
 
 ## DQCNN
 After the problems with the first approach arose, it was clear that it had to change. Also, since it would fit, it was decided to use a Deep Q-Learning Network with visual input - hence DQCNN. The basic structure stayed the same so far, but the specifics evolved over time.  
-The Main parts are: 
+Instead of just learning on past data, it is made to switch between learning and playing constantly to improve the reinforcement learning process.  
+The model will play the game and record all states, while the user written program provides judgement over the current state and gives out reward (or negative reward to punish). The "experience" won't just be used to learn once though, but will be saved to disk and the learning always randomly pulls from any past experiences to train on. It is biased to pick newer experiences, since they're more likely to be more useful for the training itself.  
+This whole change showed a lot of promise initially, but also stagnated after some learning time. It also doesn't seem to be very quick at learning (comparing it to other reinforcement learning agents) and has to be tuned further.  
+### NN architecture used for the graphs
+You can find the architecture used for the tensorflow version at the time of writing in the [`docs/NN_architecture.md`](./NN_architecture.md) file.  
+### Results
+The final results are posted in the main readme and you can see a certain progress on both games. The driving is still very much subpar, but the graph proves overall improvement over time. It might just need more learning time, or better tuned parameters.  
+## The future of the project
+Since there was trouble getting tensorflow to run on the GPU, but pytorch working on the GPU without a problem, the pytorch version was started. It was about 10 times as fast during training, which would speed up finding a better NN architecture and paramters significantly.  
+However, unfortunately the pytorch version was not able to learn at all. It seems to learn _something_ at the start, but quickly plateaued and then even gets worse over time again. So there seems to be some fundamental problem with the implementation and needs to be fixed.  
+So the next steps would be to fix the pytorch version to further improve the whole DQNN.  

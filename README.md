@@ -1,6 +1,6 @@
 # Visual AI Player
-This project aims to create a Deep Q-Learning Convolutional Neural Network (DQCNN) that generalizes well on many Video games, but can mainly control the gamejam game "[Driving Nightmare](https://misterixi.itch.io/driving-nightmare)". The idea is that the only input the AI gets, are screenshots of the game and some sort of reward signal fitting to the game. The ingame UI elements have been remove from the named game to make the learning more consistent.
-Here are the two main tests from the project:  
+This project aims to create a Deep Q-Learning Convolutional Neural Network (DQCNN) that generalizes well on many Video games, but can mainly control the gamejam game "[Driving Nightmare](https://misterixi.itch.io/driving-nightmare)". The idea is that the only input the AI gets, are screenshots of the game and some sort of reward signal fitting to the game. The ingame UI elements have been remove from the named game to make the learning more consistent.  
+Here are demos of the two main games from the project: (both played by the trained AI)  
 
 
 https://github.com/user-attachments/assets/816db6db-ae10-47bb-aa69-1aa2c5d0e8bc
