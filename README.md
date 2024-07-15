@@ -27,9 +27,9 @@ Used was Python 3.10.11 and a requirements.txt is provided. But the specific pac
 - pyautogui
 - torchsummary
 ### Tensorflow Version:
-In [Driving Nightmare AI](./driving_nightmare_AI/) is the original DQCNN built for tensorflow. This started just as a CNN, but was later changed to a Reinforcement Learning approach.  
+In [dqcnn_tensorflow](./dqcnn_tensorflow/) is the original DQCNN built for tensorflow. This started just as a CNN, but was later changed to a Reinforcement Learning approach.  
 ### Pytorch Version:
-In [General DQCNN](./general_dqcnn/) is a kind of branch of the original DQCNN built for pytorch. This was started to better utilize GPU ressources under windows and potentially make use of the more flexible computational graphs of pytorch.  
+In [dqcnn_pytorch](./dqcnn_pytorch//) is a kind of "fork" of the original DQCNN built for pytorch. This was started to better utilize GPU ressources under windows and potentially make use of the more flexible computational graphs of pytorch.  
 Currently this version is not working, since even after much training it does not improve performance, unlike the original.
 ### Usage:
 Both versions work pretty much the same way, since the branch was created after the original DQCNN was already working in general.  
